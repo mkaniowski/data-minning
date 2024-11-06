@@ -40,4 +40,5 @@ pip list --format=freeze > pip_requirements.txt
 - Michał Kaniowski [@mkaniowski](https://www.github.com/mkaniowski)
 - Konrad Marcjanowicz [@kmarcjanowicz](https://github.com/KMarcjanowicz)
 - Łukasz Kochańczyk [@LKochan123](https://github.com/LKochan123)
+- Łukasz Kołodziej [@Lkolod](https://github.com/Lkolod)
 
