@@ -1,4 +1,5 @@
 import pandas as pd
+from sklearn.metrics import confusion_matrix, classification_report
 from sklearn.preprocessing import MinMaxScaler
 
 from src.data_processing.make_dataset import make_dataset
@@ -7,7 +8,9 @@ from src.classification.classify_data import classify_data
 from src.data_processing.tokenize_data import tokenize_data
 from transformers import AutoTokenizer, DistilBertForSequenceClassification, Trainer, TrainingArguments
 import torch
-
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 class TextDataset(torch.utils.data.Dataset):
     def __init__(self, encodings, labels):
@@ -36,11 +39,10 @@ def pipeline_classification(configs):
         tokenizer = config['tokenizer']
         model_name = config['model']
 
-        _df=df
+        _df=df.copy()
 
-        # Tokenize the data
-        if model_name in ['logistic_regression', 'svm', 'naive_bayes']:
-            _df = tokenize_data(df=df, tokenizer=tokenizer)
+
+        _df = tokenize_data(df=_df, tokenizer=tokenizer)
 
         # Split the data
         X_train, X_test, y_train, y_test = make_dataset(df=_df, model_name=model_name)
@@ -52,35 +54,33 @@ def pipeline_classification(configs):
         # Train the model
         if model_name in ['logistic_regression', 'svm', 'naive_bayes', 'bert']:
             model = train_model(X_train, y_train, model_name)
+
+            # Create predictions
+            classify_data(model, X_test, y_test)
         elif model_name == 'distilbert-base-uncased':
-            # Load the tokenizer and model
-            tokenizer = AutoTokenizer.from_pretrained(model_name)
-            model = DistilBertForSequenceClassification.from_pretrained(model_name)
+            # Ensure X_train and X_test are dictionaries with input_ids and attention_mask
+            # Initialize DistilBERT tokenizer and model
+            tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
+            model = DistilBertForSequenceClassification.from_pretrained(
+                "distilbert-base-uncased", num_labels=len(set(y_train))
+            )
 
-            # Tokenize the input text
-            train_encodings = tokenizer(list(df.loc[X_train.index, 'content']), truncation=True, padding=True,
-                                        max_length=512)
-            test_encodings = tokenizer(list(df.loc[X_test.index, 'content']), truncation=True, padding=True,
-                                       max_length=512)
+            # Wrap the datasets using the TextDataset class
+            train_dataset = TextDataset(X_train, y_train)
+            test_dataset = TextDataset(X_test, y_test)
 
-            # Convert to torch Dataset
-            train_dataset = TextDataset(train_encodings, y_train.tolist())
-            test_dataset = TextDataset(test_encodings, y_test.tolist())
-
-            # Check dataset lengths
-            assert len(train_dataset) == len(y_train), "Mismatch in train dataset length"
-            assert len(test_dataset) == len(y_test), "Mismatch in test dataset length"
-
-            # Define training arguments
+            # Set up training arguments
             training_args = TrainingArguments(
-                output_dir='./results',
-                num_train_epochs=3,
-                per_device_train_batch_size=16,
+                output_dir='./results',  # Directory to save results
+                num_train_epochs=3,  # Number of epochs
+                per_device_train_batch_size=16,  # Batch size
                 per_device_eval_batch_size=16,
-                warmup_steps=500,
-                weight_decay=0.01,
-                logging_dir='./logs',
+                warmup_steps=500,  # Warmup steps for learning rate scheduler
+                weight_decay=0.01,  # Weight decay
+                logging_dir='./logs',  # Directory to save logs
                 logging_steps=10,
+                evaluation_strategy="epoch",
+                save_strategy="epoch"
             )
 
             # Initialize the Trainer
@@ -89,12 +89,46 @@ def pipeline_classification(configs):
                 args=training_args,
                 train_dataset=train_dataset,
                 eval_dataset=test_dataset,
+                tokenizer=tokenizer
             )
 
             # Train the model
             trainer.train()
-        else:
-            raise ValueError(f"Unknown model name: {model_name}")
 
-        # Classify the data
-        classify_data(model, X_test, y_test)
+            # Evaluate the model
+            trainer.evaluate()
+
+
+            # Save model
+            model.save_pretrained(f"./results/{model_name}")
+            trainer.save_model('./model')
+
+            # Predict on the test dataset
+            predictions = trainer.predict(test_dataset)
+
+            # Extract logits and convert to predicted classes
+            logits = predictions.predictions
+            y_pred = np.argmax(logits, axis=1)
+
+            # Compute confusion matrix
+            cm = confusion_matrix(y_test, y_pred)
+            print("Confusion Matrix:")
+            print(cm)
+
+            # Classification report
+            print("\nClassification Report:")
+            print(classification_report(y_test, y_pred))
+
+            # Plot confusion matrix
+            plt.figure(figsize=(8, 6))
+            sns.heatmap(cm, annot=True, fmt="d", cmap="Blues", xticklabels=range(len(set(y_test))),
+                        yticklabels=range(len(set(y_test))))
+            plt.xlabel('Predicted')
+            plt.ylabel('True')
+            plt.title('Confusion Matrix')
+            plt.show()
+
+
+
+
+

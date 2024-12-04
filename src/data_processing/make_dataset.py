@@ -9,11 +9,10 @@ import ast
 def pad_sequences(sequences, maxlen):
     padded_sequences = np.zeros((len(sequences), maxlen))
     for i, seq in enumerate(sequences):
-        if len(seq) > maxlen:
-            padded_sequences[i] = seq[:maxlen]
-        else:
-            padded_sequences[i, :len(seq)] = seq
-    return padded_sequences
+        seq = seq[:maxlen]  # Trim if too long
+        padded_sequences[i, :len(seq)] = seq
+    return padded_sequences.astype(int)
+
 
 
 def make_dataset(
@@ -32,8 +31,8 @@ def make_dataset(
     y = label_encoder.fit_transform(y)
 
     if model_name == "distilbert-base-uncased":
-        input_ids = pad_sequences(df['input_ids'].tolist(), maxlen)
-        attention_mask = pad_sequences(df['attention_mask'].tolist(), maxlen)
+        input_ids = pad_sequences(df['input_ids'].tolist(), 512)
+        attention_mask = pad_sequences(df['attention_mask'].tolist(), 512)
 
         ids_train, ids_test, mask_train, mask_test, y_train, y_test = train_test_split(
             input_ids, attention_mask, y, test_size=test_size, random_state=random_state
