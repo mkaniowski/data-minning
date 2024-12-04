@@ -4,6 +4,7 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
 import pandas as pd
 import ast
+from sklearn.preprocessing import MinMaxScaler
 
 
 def pad_sequences(sequences, maxlen):
@@ -13,6 +14,12 @@ def pad_sequences(sequences, maxlen):
         padded_sequences[i, :len(seq)] = seq
     return padded_sequences.astype(int)
 
+
+def normalize_tokens(X_train, X_test):
+    scaler = MinMaxScaler()
+    X_train = scaler.fit_transform(X_train)
+    X_test = scaler.transform(X_test)
+    return X_train, X_test
 
 
 def make_dataset(
@@ -30,6 +37,8 @@ def make_dataset(
     label_encoder = LabelEncoder()
     y = label_encoder.fit_transform(y)
 
+    out = None
+
     if model_name == "distilbert-base-uncased":
         input_ids = pad_sequences(df['input_ids'].tolist(), 512)
         attention_mask = pad_sequences(df['attention_mask'].tolist(), 512)
@@ -38,7 +47,7 @@ def make_dataset(
             input_ids, attention_mask, y, test_size=test_size, random_state=random_state
         )
 
-        return (
+        out = (
             {"input_ids": ids_train, "attention_mask": mask_train},
             {"input_ids": ids_test, "attention_mask": mask_test},
             y_train,
@@ -54,4 +63,12 @@ def make_dataset(
             X, y, test_size=test_size, random_state=random_state
         )
 
-        return X_train, X_test, y_train, y_test
+        out = X_train, X_test, y_train, y_test
+
+    # Normalize tokens if necessary
+    if model_name in ['logistic_regression', 'svm', 'naive_bayes']:
+        X_train, X_test, y_train, y_test = out
+        X_train, X_test = normalize_tokens(X_train, X_test)
+        out = X_train, X_test, y_train, y_test
+
+    return out
