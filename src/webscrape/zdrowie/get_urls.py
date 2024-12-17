@@ -13,7 +13,7 @@ def get_urls(csv_file: str, driver, row_limit: int | None = None, verbose: bool 
     time.sleep(2)
 
     collected_data = []
-    scraped_urls = set()  # To track unique URLs
+    scraped_urls = set()
 
     while True:
         articles = driver.find_elements(By.CLASS_NAME, "itemBox")
