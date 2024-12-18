@@ -49,8 +49,8 @@ def make_dataset(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 4
         attention_mask = pad_sequences(df['attention_mask'].tolist(), 512)
 
         # Balance the dataset
-        input_ids, y = balance_dataset(input_ids, y)
-        attention_mask, _ = balance_dataset(attention_mask, y)
+        # input_ids, y = balance_dataset(input_ids, y)
+        # attention_mask, _ = balance_dataset(attention_mask, y)
 
         ids_train, ids_test, mask_train, mask_test, y_train, y_test = train_test_split(input_ids, attention_mask, y,
                                                                                        test_size=test_size,

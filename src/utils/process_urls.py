@@ -1,6 +1,8 @@
 import csv
 import os
 
+from tqdm import tqdm
+
 from src.utils.get_unique_filename import get_unique_filename
 
 
@@ -16,14 +18,17 @@ def process_urls(input_file, output_file, processor, driver):
 
         count = 0
 
-        for row in reader:
-            os.system('cls' if os.name == 'nt' else 'clear')
-            print("Row:  ", count, end="\r")
+        for row in tqdm(reader):
+            # os.system('cls' if os.name == 'nt' else 'clear')
+            # print("Row:  ", count, end="\r")
             headline = row["headline"]
             category = row["category"]
             url = row["url"]
 
             content = processor(url, driver)
+
+            if content is None:
+                continue
 
             writer.writerow({"headline": headline, "category": category, "content": content, "url": url, })
             count = count + 1

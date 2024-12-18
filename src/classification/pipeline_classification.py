@@ -12,7 +12,7 @@ from src.data_processing.tokenize_data import tokenize_data
 
 def pipeline_classification(configs):
     # Load data
-    df = pd.read_csv("E:\\Michal\\Dokumenty\\Studia\\DM\\data-minning\\data\\cleaned_data.csv")
+    df = pd.read_csv("E:\\Michal\\Dokumenty\\Studia\\DM\\data-minning\\data\\cleaned_data_v2.csv")
 
     df['content'] = df['content'].apply(lambda x: ast.literal_eval(x) if isinstance(x, str) else x)
 
