@@ -15,7 +15,7 @@ def get_content(url, driver):
         for paragraph in article_body.find_elements(By.TAG_NAME, "p"):
             content += paragraph.text + " "
 
-        return content[:200].replace('"', '').strip()
+        return content.replace('"', '').strip()
 
     except Exception as e:
         return None

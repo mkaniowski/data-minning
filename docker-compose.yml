@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+  studies_db:
+    image: postgres:13
+    container_name: studies_db
+    environment:
+      POSTGRES_USER: studies
+      POSTGRES_PASSWORD: studies
+      POSTGRES_DB: studies
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./studies_db_data:/var/lib/postgresql/data
+
+  optuna_dashboard:
+    image: ghcr.io/optuna/optuna-dashboard
+    container_name: optuna_dashboard
+    command: postgresql+psycopg2://studies:studies@studies_db:5432/studies
+    ports:
+      - "8080:8080"
+    depends_on:
+      - studies_db
