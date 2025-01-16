@@ -52,6 +52,16 @@ def tokenize_data(df: pd.DataFrame, tokenizer: str, **kwargs) -> pd.DataFrame:
             workers=kwargs.get('workers', 6), sg=kwargs.get('sg', 1),  # Skip-gram model
             epochs=kwargs.get('epochs', 15))
 
+        word_vectors = []
+        metadata = []
+        for word in word2vec_model.wv.index_to_key:
+            word_vectors.append(word2vec_model.wv[word].tolist())
+            metadata.append(word)
+
+        # Save vectors and metadata to .tsv files
+        save_to_tsv(word_vectors, metadata, kwargs.get('vector_file', 'vectors.tsv'),
+                    kwargs.get('metadata_file', 'metadata.tsv'))
+
         # Compute TF-IDF weights for each word
         vectorizer = TfidfVectorizer(max_features=kwargs.get('max_features', 2048), lowercase=lowercase)
         df['content_str'] = df['content'].apply(lambda x: ' '.join(x))
@@ -75,24 +85,54 @@ def tokenize_data(df: pd.DataFrame, tokenizer: str, **kwargs) -> pd.DataFrame:
         df['tokens'] = df['content'].apply(get_weighted_embeddings)
         df.drop(columns=['content_str'], inplace=True)
 
-    elif tokenizer.startswith('distilbert') or tokenizer.startswith('bert'):
+
+    elif tokenizer == 'dkleczek/bert-base-polish-uncased-v1':
         model_name = kwargs.get('model_name', tokenizer)
         auto_tokenizer = AutoTokenizer.from_pretrained(model_name)
         df['content'] = df['content'].apply(lambda x: ' '.join(x) if isinstance(x, list) else str(x))
         try:
-            tokenized = auto_tokenizer(df['content'].tolist(), truncation=True, padding=True,
-                                       max_length=kwargs.get('max_length', 512), return_tensors='pt')
-            # Store 'input_ids' and 'attention_mask' separately
+            # Tokenize the content
+            tokenized = auto_tokenizer(
+                df['content'].tolist(),
+                truncation=True,
+                padding=True,
+                max_length=kwargs.get('max_length', 128),
+                return_tensors='pt'
+            )
+
+            # Store tokenized results in the DataFrame
             df['input_ids'] = tokenized['input_ids'].tolist()
             df['attention_mask'] = tokenized['attention_mask'].tolist()
-            # Combine them into 'tokens' list
-            df['tokens'] = df.apply(lambda row: [row['input_ids'], row['attention_mask']], axis=1)
         except Exception as e:
             # Handle tokenizer errors
             print(f"Tokenization error: {e}")
-            return df
+        return df
 
     else:
         raise ValueError(f"Unknown tokenizer: {tokenizer}")
 
     return df
+
+
+def save_to_tsv(vectors, metadata, vector_file='vectors.tsv', metadata_file='metadata.tsv'):
+    """
+    Save vectors and metadata to .tsv files for TensorFlow Projector.
+
+    Args:
+        vectors (list of list of float): List of vector representations.
+        metadata (list of str): List of metadata corresponding to each vector.
+        vector_file (str): Path to save the vector .tsv file.
+        metadata_file (str): Path to save the metadata .tsv file.
+    """
+    # Save vectors
+    with open(vector_file, 'w') as vf:
+        for vector in vectors:
+            vf.write('\t'.join(map(str, vector)) + '\n')
+
+    # Save metadata
+    with open(metadata_file, 'w') as mf:
+        for meta in metadata:
+            mf.write(meta + '\n')
+
+    print(f"Vectors saved to {vector_file}")
+    print(f"Metadata saved to {metadata_file}")

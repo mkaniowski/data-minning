@@ -1,5 +1,5 @@
 import ast
-from typing import Tuple, Union
+from typing import Tuple, Union, Any
 
 import numpy as np
 import pandas as pd
@@ -31,8 +31,8 @@ def balance_dataset(X, y):
 
 
 def make_dataset(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 42, maxlen: int = 1024,
-                 model_name: str = "generic", tokenizer_name: str = "count", padding = True, normalization = True) -> Union[
-    Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray], Tuple[dict, dict, np.ndarray, np.ndarray],]:
+                 model_name: str = "generic", tokenizer_name: str = "count", padding = True, normalization = True) -> \
+        tuple[tuple[dict[str, Any], dict[str, Any], Any, Any], LabelEncoder] | tuple[Any, Any, Any, Any, LabelEncoder]:
     y = df['category']
 
     # Encode labels
@@ -43,7 +43,7 @@ def make_dataset(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 4
     for i, label in enumerate(label_encoder.classes_):
         print(f"{label} -> {i}")
 
-    if model_name == "distilbert-base-uncased":
+    if model_name == "dkleczek/bert-base-polish-uncased-v1":
         # Handle DistilBERT inputs
         input_ids = pad_sequences(df['input_ids'].tolist(), 512)
         attention_mask = pad_sequences(df['attention_mask'].tolist(), 512)
@@ -56,7 +56,7 @@ def make_dataset(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 4
 
         return (
         {"input_ids": ids_train, "attention_mask": mask_train}, {"input_ids": ids_test, "attention_mask": mask_test},
-        y_train, y_test,)
+        y_train, y_test, label_encoder)
 
     else:
         # Handle generic models (TF-IDF, Word2Vec, etc.)
@@ -93,4 +93,4 @@ def make_dataset(df: pd.DataFrame, test_size: float = 0.2, random_state: int = 4
                 X_test = X_test - X_test.min()
 
 
-        return X_train, X_test, y_train, y_test
+        return X_train, X_test, y_train, y_test, label_encoder

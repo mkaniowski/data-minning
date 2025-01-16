@@ -6,8 +6,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.svm import SVC
-from transformers import BertTokenizer, BertForSequenceClassification, DistilBertForSequenceClassification, \
-    AutoTokenizer
+from transformers import BertTokenizer, BertForSequenceClassification, DistilBertForSequenceClassification
 from transformers import Trainer, TrainingArguments
 
 from src.classification.TextDataset import TextDataset
@@ -26,8 +25,8 @@ def train_model(X_train, y_train, X_test, y_test, model_name, max_iter, tokenize
     if model_name == 'logistic_regression':
         def objective(trial):
             params = {'C': trial.suggest_float('C', 1e-3, 1e2, log=True),
-                'solver': trial.suggest_categorical('solver', ['lbfgs', 'liblinear']),
-                'class_weight': trial.suggest_categorical('class_weight', [None, 'balanced']), }
+                      'solver': trial.suggest_categorical('solver', ['lbfgs', 'liblinear']),
+                      'class_weight': trial.suggest_categorical('class_weight', [None, 'balanced']), }
             model = LogisticRegression(max_iter=max_iter, **params)
             model.fit(X_train, y_train)
             preds = model.predict(X_test)
@@ -43,9 +42,9 @@ def train_model(X_train, y_train, X_test, y_test, model_name, max_iter, tokenize
     elif model_name == 'svm':
         def objective(trial):
             params = {'C': trial.suggest_float('C', 1e-3, 1e2, log=True),
-                'kernel': trial.suggest_categorical('kernel', ['linear', 'rbf']),
-                'gamma': trial.suggest_categorical('gamma', ['scale', 'auto']),
-                'class_weight': trial.suggest_categorical('class_weight', [None, 'balanced']), }
+                      'kernel': trial.suggest_categorical('kernel', ['linear', 'rbf']),
+                      'gamma': trial.suggest_categorical('gamma', ['scale', 'auto']),
+                      'class_weight': trial.suggest_categorical('class_weight', [None, 'balanced']), }
             model = SVC(max_iter=max_iter, random_state=42, **params)
             model.fit(X_train, y_train)
             preds = model.predict(X_test)
@@ -65,8 +64,8 @@ def train_model(X_train, y_train, X_test, y_test, model_name, max_iter, tokenize
     elif model_name == 'random_forest':
         def objective(trial):
             params = {'n_estimators': trial.suggest_int('n_estimators', 50, 500),
-                'max_depth': trial.suggest_categorical('max_depth', [None, 10, 20, 30]),
-                'min_samples_split': trial.suggest_int('min_samples_split', 2, 10), }
+                      'max_depth': trial.suggest_categorical('max_depth', [None, 10, 20, 30]),
+                      'min_samples_split': trial.suggest_int('min_samples_split', 2, 10), }
             model = RandomForestClassifier(**params)
             model.fit(X_train, y_train)
             preds = model.predict(X_test)
@@ -82,29 +81,34 @@ def train_model(X_train, y_train, X_test, y_test, model_name, max_iter, tokenize
     elif model_name == 'bert':
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         model = BertForSequenceClassification.from_pretrained('bert-base-uncased', num_labels=6)
+
         train_encodings = tokenizer(X_train.tolist(), truncation=True, padding=True)
         train_dataset = TextDataset(train_encodings, y_train)
         training_args = TrainingArguments(output_dir='./results', num_train_epochs=3, per_device_train_batch_size=8)
         trainer = Trainer(model=model, args=training_args, train_dataset=train_dataset)
         trainer.train()
 
-    elif model_name == 'distilbert-base-uncased':
+    elif model_name == 'dkleczek/bert-base-polish-uncased-v1':
         y_train = torch.tensor(y_train, dtype=torch.long)
         y_test = torch.tensor(y_test, dtype=torch.long)
-        tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
-        model = DistilBertForSequenceClassification.from_pretrained("distilbert-base-uncased",
-                                                                    num_labels=len(set(y_train)))
+        model = BertForSequenceClassification.from_pretrained(
+            "dkleczek/bert-base-polish-uncased-v1",
+            num_labels=5
+        )
+        model = model.to('cuda')
         train_dataset = TextDataset(X_train, y_train)
         test_dataset = TextDataset(X_test, y_test)
 
-        training_args = TrainingArguments(output_dir='./results', num_train_epochs=3, per_device_train_batch_size=32,
-                                          per_device_eval_batch_size=32, warmup_steps=500, weight_decay=0.01,
+        training_args = TrainingArguments(output_dir='./results', num_train_epochs=3, per_device_train_batch_size=16,
+                                          per_device_eval_batch_size=16, warmup_steps=500, weight_decay=0.01,
                                           logging_dir='./logs', logging_steps=10, evaluation_strategy="epoch",
-                                          save_strategy="epoch", fp16=True, gradient_accumulation_steps=2)
+                                          save_strategy="epoch", fp16=True, gradient_accumulation_steps=10)
         trainer = Trainer(model=model, args=training_args, train_dataset=train_dataset, eval_dataset=test_dataset)
         trainer.train()
+        return trainer
 
     else:
         raise ValueError(f"Unknown model_name: {model_name}")
 
-    return model
+    if model_name != 'dkleczek/bert-base-polish-uncased-v1':
+        return model
