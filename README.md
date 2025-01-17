@@ -35,6 +35,13 @@ conda list -e > conda_requirements.txt
 pip list --format=freeze > pip_requirements.txt
 ```
 
+
+## Optuna dashboard
+
+```bash
+docker run -it --rm -p 8080:8080 ghcr.io/optuna/optuna-dashboard postgresql+psycopg2://studies:studies@localhost:5432/studies
+```
+
 ## Authors
 
 - Michał Kaniowski [@mkaniowski](https://www.github.com/mkaniowski)
